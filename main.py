@@ -117,7 +117,7 @@ def show_app():
     decision_title = decision_title
 
     if not decision_title:
-        st.warning("Please enter a decision title to proceed.")
+        st.warning("Please enter a option title to proceed.")
         return
 
     choice = CareerChoice()
@@ -190,5 +190,5 @@ def show_app():
 
 
 if __name__ == "__main__":
-    st.title("Career Choice Decision Helper")
+    st.title("Thinking Analytically About Your Career")
     show_app()
