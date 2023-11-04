@@ -154,8 +154,7 @@ def display_simulation_results(outcomes, decision_title):
     st.sidebar.write("-----")
 
 
-ef
-show_app():
+def show_app():
 st.subheader("Enter up to 3 options you're weighing:")
 options = []
 for i in range(3):
