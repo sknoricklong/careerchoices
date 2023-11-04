@@ -2,44 +2,42 @@ import streamlit as st
 import random
 import numpy as np
 import matplotlib.pyplot as plt
-from fpdf import FPDF
-import io
+from reportlab.lib.pagesizes import letter
+from reportlab.pdfgen import canvas
+from reportlab.lib.utils import ImageReader
 import base64
-import matplotlib.pyplot as plt
 
-# Function to convert a matplotlib figure to a PNG image
-def save_fig_to_png(fig):
-    buf = io.BytesIO()
-    fig.savefig(buf, format='png')
-    buf.seek(0)
-    return buf
-
-
-# Function to generate the PDF report
 def generate_pdf(outcomes, results_summary):
-    pdf = FPDF()
-    pdf.set_auto_page_break(auto=True, margin=15)
-    pdf.add_page()
+    pdf_output = io.BytesIO()
+    c = canvas.Canvas(pdf_output, pagesize=letter)
+    width, height = letter
 
-    pdf.set_font("Arial", size=12)
+    y_position = height - 30
 
-    # Add the charts
     for title, stats in results_summary.items():
-        pdf.cell(200, 10, txt=f"Stats for {title}", ln=True)
-        pdf.cell(200, 10, txt=f"Mean: {stats['mean']:.2f}", ln=True)
-        pdf.cell(200, 10, txt=f"25th Percentile: {stats['25th_percentile']:.2f}", ln=True)
-        pdf.cell(200, 10, txt=f"75th Percentile: {stats['75th_percentile']:.2f}", ln=True)
+        c.drawString(30, y_position, f"Stats for {title}")
+        y_position -= 20
+        c.drawString(30, y_position, f"Mean: {stats['mean']:.2f}")
+        y_position -= 20
+        c.drawString(30, y_position, f"25th Percentile: {stats['25th_percentile']:.2f}")
+        y_position -= 20
+        c.drawString(30, y_position, f"75th Percentile: {stats['75th_percentile']:.2f}")
+        y_position -= 20
 
-        # Assuming `display_simulation_results` generates a matplotlib figure
         fig = plt.figure()
         display_simulation_results(outcomes[title], title)
         image_stream = save_fig_to_png(fig)
-        plt.close(fig)  # Close the figure after saving
-        pdf.image(image_stream, x=10, y=None, w=180)
+        plt.close(fig)
 
-    # Save to a binary stream
-    pdf_output = io.BytesIO()
-    pdf.output(pdf_output, 'F')
+        image = ImageReader(image_stream)
+        c.drawImage(image, 30, y_position, width=500, preserveAspectRatio=True, anchor='c')
+        y_position -= 240  # Adjust as necessary based on your image sizes
+
+        if y_position < 100:  # Check to avoid drawing over the bottom page limit
+            c.showPage()
+            y_position = height - 30
+
+    c.save()
     pdf_output.seek(0)
 
     return pdf_output
@@ -246,10 +244,12 @@ def show_app():
     )
 
     if st.button("Run Simulation"):
+        outcomes_dict = {}  # Initialize a dictionary to hold outcomes for all options
         for index, choice in enumerate(choices):
             decision_title = options[index]
             outcomes = choice.monte_carlo_simulation(num_simulations)
             display_simulation_results(outcomes, decision_title)
+            outcomes_dict[decision_title] = outcomes  # Store outcomes in the dictionary
 
             # Collect summary statistics for sidebar display later
             results_summary[decision_title] = {
@@ -280,7 +280,7 @@ def show_app():
 
         st.sidebar.header("Download Report")
         if st.sidebar.button("Generate PDF"):
-            pdf_output = generate_pdf(outcomes, results_summary)
+            pdf_output = generate_pdf(outcomes_dict, results_summary)  # Pass the outcomes_dict to generate_pdf
             b64 = base64.b64encode(pdf_output.read()).decode()
             href = f'<a href="data:application/octet-stream;base64,{b64}" download="simulation_report.pdf">Download PDF</a>'
             st.sidebar.markdown(href, unsafe_allow_html=True)
