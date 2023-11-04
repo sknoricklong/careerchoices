@@ -158,7 +158,7 @@ def show_app():
     st.subheader("Enter up to 3 options you're weighing:")
     options = []
     for i in range(3):
-        option_title = st.text_input(f"Option {i + 1} title:", key=f"option_{i}")
+        option_title = st.text_input(f"Option {i+1} title:", key=f"option_{i}")
         if option_title:
             options.append(option_title)
 
@@ -173,16 +173,19 @@ def show_app():
     for index, choice in enumerate(choices):
         decision_title = options[index]
 
-        use_default_factors = st.checkbox(f"Use default factors for {decision_title}?", value=True,
-                                          key=f"use_default_{index}")
+        # You should define 'all_factors' here, before the 'if' statement,
+        # maybe all_factors are the default factors from each CareerChoice?
+        all_factors = list(choice.factors.keys())
+
+        use_default_factors = st.checkbox(f"Use default factors for {decision_title}?", value=True, key=f"use_default_{index}")
 
         if use_default_factors:
-            # Skip custom factor definition and use the default ones
             st.markdown(f"## Using default factors for Option {index + 1}: {decision_title}")
             # Here you should add the logic to use the default factors
+            # For example:
+            # selected_factors = all_factors # If you're using all of them as default
         else:
             # Proceed with custom factor definition
-            all_factors = list(choice.factors.keys())
             selected_factors = []
 
             st.markdown(f"## Customize factors for Option {index + 1}: {decision_title}")
