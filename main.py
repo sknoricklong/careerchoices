@@ -123,6 +123,19 @@ class CareerChoice:
             outcomes.append(self.calculate_score())
         return outcomes
 
+    def add_factor(self, factor_name, rank):
+        # Add a new factor to the factors dictionary
+        if factor_name not in self.factors:
+            self.factors[factor_name] = {
+                'rank': rank,
+                'base_case': 0.00,
+                'best_case': 0.00,
+                'worst_case': 0.00,
+                'prob_best': 0.0,
+                'prob_worst': 0.0,
+                'prob_base': 0.5  # You might want to adjust default values
+            }
+
 
 def display_simulation_results(outcomes, decision_title):
     fig, ax = plt.subplots()
@@ -166,6 +179,16 @@ def show_app():
     choices = [CareerChoice() for _ in options]
 
     results_summary = {}
+
+    # Add new factor section
+    st.sidebar.subheader("Add a new factor")
+    new_factor_name = st.sidebar.text_input("Factor name")
+    if new_factor_name:
+        for choice in choices:
+            if new_factor_name not in choice.factors:
+                choice.add_factor(new_factor_name, rank=len(choice.factors) + 1)
+            else:
+                st.sidebar.error("Factor already exists!")
 
     for index, choice in enumerate(choices):
         decision_title = options[index]
