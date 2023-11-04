@@ -155,37 +155,37 @@ def display_simulation_results(outcomes, decision_title):
 
 
 def show_app():
-st.subheader("Enter up to 3 options you're weighing:")
-options = []
-for i in range(3):
-    option_title = st.text_input(f"Option {i + 1} title:", key=f"option_{i}")
-    if option_title:
-        options.append(option_title)
+    st.subheader("Enter up to 3 options you're weighing:")
+    options = []
+    for i in range(3):
+        option_title = st.text_input(f"Option {i + 1} title:", key=f"option_{i}")
+        if option_title:
+            options.append(option_title)
 
-if len(options) == 0:
-    st.warning("Please enter at least one option title to proceed.")
-    return
+    if len(options) == 0:
+        st.warning("Please enter at least one option title to proceed.")
+        return
 
-choices = [CareerChoice() for _ in options]
+    choices = [CareerChoice() for _ in options]
 
-results_summary = {}
+    results_summary = {}
 
-for index, choice in enumerate(choices):
-    decision_title = options[index]
+    for index, choice in enumerate(choices):
+        decision_title = options[index]
 
-    use_default_factors = st.checkbox(f"Use default factors for {decision_title}?", value=True,
-                                      key=f"use_default_{index}")
+        use_default_factors = st.checkbox(f"Use default factors for {decision_title}?", value=True,
+                                          key=f"use_default_{index}")
 
-    if use_default_factors:
-        # Skip custom factor definition and use the default ones
-        st.markdown(f"## Using default factors for Option {index + 1}: {decision_title}")
-    else:
-        # Proceed with custom factor definition
-        all_factors = list(choice.factors.keys())
-        selected_factors = []
+        if use_default_factors:
+            # Skip custom factor definition and use the default ones
+            st.markdown(f"## Using default factors for Option {index + 1}: {decision_title}")
+        else:
+            # Proceed with custom factor definition
+            all_factors = list(choice.factors.keys())
+            selected_factors = []
 
-        st.markdown(f"## Customize factors for Option {index + 1}: {decision_title}")
-        st.markdown("Rank the factors by importance:")
+            st.markdown(f"## Customize factors for Option {index + 1}: {decision_title}")
+            st.markdown("Rank the factors by importance:")
 
         for i, _ in enumerate(all_factors):
             remaining_factors = [factor for factor in all_factors if factor not in selected_factors]
