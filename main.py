@@ -6,6 +6,7 @@ from reportlab.lib.pagesizes import letter
 from reportlab.pdfgen import canvas
 from reportlab.lib.utils import ImageReader
 import base64
+import io
 
 def generate_pdf(outcomes, results_summary):
     pdf_output = io.BytesIO()
@@ -278,12 +279,31 @@ def show_app():
             spread = results_summary[title]["75th_percentile"] - results_summary[title]["25th_percentile"]
             st.sidebar.write(f"{title}: {spread:.2f}")
 
-        st.sidebar.header("Download Report")
+        # Button to generate and download PDF
         if st.sidebar.button("Generate PDF"):
-            pdf_output = generate_pdf(outcomes_dict, results_summary)  # Pass the outcomes_dict to generate_pdf
-            b64 = base64.b64encode(pdf_output.read()).decode()
+            # Generate the PDF output
+            pdf_output = generate_pdf(outcomes_dict, results_summary)
+            pdf_output.seek(0)
+
+            # Encode and create the download link
+            b64 = base64.b64encode(pdf_output.read()).decode('utf-8')
             href = f'<a href="data:application/octet-stream;base64,{b64}" download="simulation_report.pdf">Download PDF</a>'
             st.sidebar.markdown(href, unsafe_allow_html=True)
+
+            # Also print to terminal
+            # Create a BytesIO object and write text to it
+            text_memory = io.BytesIO()
+            text_message = "Report generated and ready for download."
+            text_memory.write(text_message.encode())  # Encoding the string to bytes
+
+            # Reset the cursor to the beginning of the BytesIO object
+            text_memory.seek(0)
+
+            # Read the contents and print it in the terminal
+            print(text_memory.read().decode())  # Decoding is necessary because we are reading bytes
+
+            # Inform the user that the report has been generated
+            st.sidebar.write("Report generated. Check the terminal for details.")
 
 
 if __name__ == "__main__":
