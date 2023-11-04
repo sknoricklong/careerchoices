@@ -154,60 +154,38 @@ def display_simulation_results(outcomes, decision_title):
     st.sidebar.write("-----")
 
 
-def show_app():
-    st.subheader("Enter up to 3 options you're weighing:")
-    options = []
-    for i in range(3):
-        option_title = st.text_input(f"Option {i+1} title:", key=f"option_{i}")
-        if option_title:
-            options.append(option_title)
+ef
+show_app():
+st.subheader("Enter up to 3 options you're weighing:")
+options = []
+for i in range(3):
+    option_title = st.text_input(f"Option {i + 1} title:", key=f"option_{i}")
+    if option_title:
+        options.append(option_title)
 
-    if len(options) == 0:
-        st.warning("Please enter at least one option title to proceed.")
-        return
+if len(options) == 0:
+    st.warning("Please enter at least one option title to proceed.")
+    return
 
-    # Ask for factor definitions before initializing CareerChoice instances
-    factor_definitions = {}
-    st.subheader("Define the factors for the simulation:")
-    with st.form(key='factors_form'):
-        factor_count = st.number_input('How many factors are there?', min_value=1, max_value=10, value=6)
-        for i in range(int(factor_count)):
-            factor_name = st.text_input(f"Factor {i+1} name:", key=f"factor_name_{i}")
-            if factor_name:
-                rank = st.number_input(f"Rank for {factor_name}:", min_value=1, max_value=10, key=f"rank_{i}")
-                base_case = st.number_input(f"Base Case for {factor_name}:", min_value=0.0, max_value=3.0, key=f"base_case_{i}")
-                best_case = st.number_input(f"Best Case for {factor_name}:", min_value=0.0, max_value=3.0, key=f"best_case_{i}")
-                worst_case = st.number_input(f"Worst Case for {factor_name}:", min_value=0.0, max_value=3.0, key=f"worst_case_{i}")
-                prob_best = st.number_input(f"Probability of Best Case for {factor_name} (0-1):", min_value=0.0, max_value=1.0, key=f"prob_best_{i}")
-                prob_worst = st.number_input(f"Probability of Worst Case for {factor_name} (0-1):", min_value=0.0, max_value=1.0, key=f"prob_worst_{i}")
-                prob_base = 1 - prob_best - prob_worst
+choices = [CareerChoice() for _ in options]
 
-                factor_definitions[factor_name] = {
-                    'rank': rank,
-                    'base_case': base_case,
-                    'best_case': best_case,
-                    'worst_case': worst_case,
-                    'prob_best': prob_best,
-                    'prob_worst': prob_worst,
-                    'prob_base': prob_base
-                }
-        submit_factors = st.form_submit_button(label='Submit Factors')
+results_summary = {}
 
-    if not submit_factors or not factor_definitions:
-        st.warning("Please define the factors and press 'Submit Factors' to proceed.")
-        return
+for index, choice in enumerate(choices):
+    decision_title = options[index]
 
-    choices = [CareerChoice(factor_definitions) for _ in options]
+    use_default_factors = st.checkbox(f"Use default factors for {decision_title}?", value=True,
+                                      key=f"use_default_{index}")
 
-    results_summary = {}
-
-    for index, choice in enumerate(choices):
-        decision_title = options[index]
-
+    if use_default_factors:
+        # Skip custom factor definition and use the default ones
+        st.markdown(f"## Using default factors for Option {index + 1}: {decision_title}")
+    else:
+        # Proceed with custom factor definition
         all_factors = list(choice.factors.keys())
         selected_factors = []
 
-        st.markdown(f"## Option {index + 1}: {decision_title}")
+        st.markdown(f"## Customize factors for Option {index + 1}: {decision_title}")
         st.markdown("Rank the factors by importance:")
 
         for i, _ in enumerate(all_factors):
