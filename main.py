@@ -44,8 +44,11 @@ def generate_pdf(outcomes, results_summary):
     return pdf_output
 
 class CareerChoice:
-    def __init__(self):
-        self.initialize_factors()
+    def __init__(self, factors=None):
+        if factors is not None:
+            self.factors = factors
+        else:
+            self.initialize_factors()
 
     def initialize_factors(self):
         self.factors = {
@@ -163,7 +166,38 @@ def show_app():
         st.warning("Please enter at least one option title to proceed.")
         return
 
-    choices = [CareerChoice() for _ in options]
+    # Ask for factor definitions before initializing CareerChoice instances
+    factor_definitions = {}
+    st.subheader("Define the factors for the simulation:")
+    with st.form(key='factors_form'):
+        factor_count = st.number_input('How many factors are there?', min_value=1, max_value=10, value=6)
+        for i in range(int(factor_count)):
+            factor_name = st.text_input(f"Factor {i+1} name:", key=f"factor_name_{i}")
+            if factor_name:
+                rank = st.number_input(f"Rank for {factor_name}:", min_value=1, max_value=10, key=f"rank_{i}")
+                base_case = st.number_input(f"Base Case for {factor_name}:", min_value=0.0, max_value=3.0, key=f"base_case_{i}")
+                best_case = st.number_input(f"Best Case for {factor_name}:", min_value=0.0, max_value=3.0, key=f"best_case_{i}")
+                worst_case = st.number_input(f"Worst Case for {factor_name}:", min_value=0.0, max_value=3.0, key=f"worst_case_{i}")
+                prob_best = st.number_input(f"Probability of Best Case for {factor_name} (0-1):", min_value=0.0, max_value=1.0, key=f"prob_best_{i}")
+                prob_worst = st.number_input(f"Probability of Worst Case for {factor_name} (0-1):", min_value=0.0, max_value=1.0, key=f"prob_worst_{i}")
+                prob_base = 1 - prob_best - prob_worst
+
+                factor_definitions[factor_name] = {
+                    'rank': rank,
+                    'base_case': base_case,
+                    'best_case': best_case,
+                    'worst_case': worst_case,
+                    'prob_best': prob_best,
+                    'prob_worst': prob_worst,
+                    'prob_base': prob_base
+                }
+        submit_factors = st.form_submit_button(label='Submit Factors')
+
+    if not submit_factors or not factor_definitions:
+        st.warning("Please define the factors and press 'Submit Factors' to proceed.")
+        return
+
+    choices = [CareerChoice(factor_definitions) for _ in options]
 
     results_summary = {}
 
@@ -278,32 +312,6 @@ def show_app():
         for title in spread_ranking:
             spread = results_summary[title]["75th_percentile"] - results_summary[title]["25th_percentile"]
             st.sidebar.write(f"{title}: {spread:.2f}")
-
-        # Button to generate and download PDF
-        if st.sidebar.button("Generate PDF"):
-            # Generate the PDF output
-            pdf_output = generate_pdf(outcomes_dict, results_summary)
-            pdf_output.seek(0)
-
-            # Encode and create the download link
-            b64 = base64.b64encode(pdf_output.read()).decode('utf-8')
-            href = f'<a href="data:application/octet-stream;base64,{b64}" download="simulation_report.pdf">Download PDF</a>'
-            st.sidebar.markdown(href, unsafe_allow_html=True)
-
-            # Also print to terminal
-            # Create a BytesIO object and write text to it
-            text_memory = io.BytesIO()
-            text_message = "Report generated and ready for download."
-            text_memory.write(text_message.encode())  # Encoding the string to bytes
-
-            # Reset the cursor to the beginning of the BytesIO object
-            text_memory.seek(0)
-
-            # Read the contents and print it in the terminal
-            print(text_memory.read().decode())  # Decoding is necessary because we are reading bytes
-
-            # Inform the user that the report has been generated
-            st.sidebar.write("Report generated. Check the terminal for details.")
 
 
 if __name__ == "__main__":
