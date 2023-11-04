@@ -136,6 +136,10 @@ class CareerChoice:
                 'prob_base': 0.5  # You might want to adjust default values
             }
 
+    def get_factors(self):
+        # Returns a dictionary of factors
+        return self.factors
+
 
 def display_simulation_results(outcomes, decision_title):
     fig, ax = plt.subplots()
@@ -178,17 +182,51 @@ def show_app():
 
     choices = [CareerChoice() for _ in options]
 
-    results_summary = {}
+    # Sidebar for adding/editing factors
+    st.sidebar.subheader("Manage Factors")
 
-    # Add new factor section
-    st.sidebar.subheader("Add a new factor")
-    new_factor_name = st.sidebar.text_input("Factor name")
-    if new_factor_name:
+    # Edit existing factors
+    for choice in choices:
+        existing_factors = choice.get_factors()
+        for factor_name, details in existing_factors.items():
+            with st.sidebar.expander(f"Edit {factor_name}"):
+                details['base_case'] = st.number_input(
+                    "Base Case", value=details['base_case'], format="%.2f", key=f"base_{factor_name}")
+                details['best_case'] = st.number_input(
+                    "Best Case", value=details['best_case'], format="%.2f", key=f"best_{factor_name}")
+                details['worst_case'] = st.number_input(
+                    "Worst Case", value=details['worst_case'], format="%.2f", key=f"worst_{factor_name}")
+                details['prob_base'] = st.number_input(
+                    "Prob Base", value=details['prob_base'], format="%.2f", min_value=0.0, max_value=1.0, key=f"prob_base_{factor_name}")
+                details['prob_best'] = st.number_input(
+                    "Prob Best", value=details['prob_best'], format="%.2f", min_value=0.0, max_value=1.0, key=f"prob_best_{factor_name}")
+                details['prob_worst'] = st.number_input(
+                    "Prob Worst", value=details['prob_worst'], format="%.2f", min_value=0.0, max_value=1.0, key=f"prob_worst_{factor_name}")
+
+    # Add new factor
+    new_factor_name = st.sidebar.text_input("New Factor Name", key="new_factor")
+    if new_factor_name and st.sidebar.button("Add New Factor"):
         for choice in choices:
             if new_factor_name not in choice.factors:
                 choice.add_factor(new_factor_name, rank=len(choice.factors) + 1)
             else:
                 st.sidebar.error("Factor already exists!")
+
+    st.subheader("Enter up to 3 options you're weighing:")
+    options = []
+    for i in range(3):
+        option_title = st.text_input(f"Option {i+1} title:", key=f"option_{i}")
+        if option_title:
+            options.append(option_title)
+
+    if len(options) == 0:
+        st.warning("Please enter at least one option title to proceed.")
+        return
+
+    choices = [CareerChoice() for _ in options]
+
+    results_summary = {}
+
 
     for index, choice in enumerate(choices):
         decision_title = options[index]
