@@ -164,7 +164,7 @@ def show_app():
 
     if len(options) == 0:
         st.warning("Please enter at least one option title to proceed.")
-        return
+        st.stop()
 
     choices = [CareerChoice() for _ in options]
 
@@ -179,6 +179,7 @@ def show_app():
         if use_default_factors:
             # Skip custom factor definition and use the default ones
             st.markdown(f"## Using default factors for Option {index + 1}: {decision_title}")
+            # Here you should add the logic to use the default factors
         else:
             # Proceed with custom factor definition
             all_factors = list(choice.factors.keys())
