@@ -181,7 +181,7 @@ def show_app():
         st.markdown("---")
 
     st.subheader("Monte Carlo Simulation Parameters")
-    num_simulations = st.slider("Number of simulations:", 100, 5000, 5000)
+    num_simulations = st.slider("Number of simulations:", 100, 15000, 5000)
 
     if st.button("Run Simulation"):
         outcomes = choice.monte_carlo_simulation(num_simulations)
@@ -190,5 +190,5 @@ def show_app():
 
 
 if __name__ == "__main__":
-    st.title("Thinking Analytically About Your Career")
+    st.title("Think Analytically About Your Career")
     show_app()
