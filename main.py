@@ -123,6 +123,12 @@ class CareerChoice:
             outcomes.append(self.calculate_score())
         return outcomes
 
+    def update_ranks(self, selected_factors):
+        # This function should be called after the user has finished ranking the factors for an option.
+        # It updates the rank for each factor based on the order in which they were selected.
+        for i, factor in enumerate(selected_factors):
+            self.factors[factor]['rank'] = i + 1
+
 
 def display_simulation_results(outcomes, decision_title):
     fig, ax = plt.subplots()
@@ -153,87 +159,76 @@ def display_simulation_results(outcomes, decision_title):
 
 def show_app():
     st.subheader("Enter up to 3 options you're weighing:")
-    options = []
-    for i in range(3):
-        option_title = st.text_input(f"Option {i+1} title:", key=f"option_{i}")
-        if option_title:
-            options.append(option_title)
+    options = [st.text_input(f"Option {i+1} title:", key=f"option_{i}") for i in range(3)]
+    options = [option for option in options if option]  # Filter out empty options
 
-    if len(options) == 0:
+    if not options:
         st.warning("Please enter at least one option title to proceed.")
         return
 
-    choices = [CareerChoice() for _ in options]
+    # Initialize or update session state for ranks
+    if 'ranks' not in st.session_state:
+        st.session_state.ranks = {option: {} for option in options}
 
-    results_summary = {}
+    choices = [CareerChoice() for _ in options]
 
     for index, choice in enumerate(choices):
         decision_title = options[index]
 
-        all_factors = list(choice.factors.keys())
-        selected_factors = []
-
         st.markdown(f"## Option {index + 1}: {decision_title}")
         st.markdown("Rank the factors by importance:")
 
-        for i, _ in enumerate(all_factors):
-            remaining_factors = [factor for factor in all_factors if factor not in selected_factors]
-            selected_factor = st.selectbox(f"Option {index + 1} - Rank {i + 1}:", remaining_factors, index=0, key=f"option_{index}_rank_{i}")
-            selected_factors.append(selected_factor)
+        for rank in range(len(choice.factors)):
+            factor_name = st.session_state.ranks[decision_title].get(rank + 1)
 
-            st.markdown(f"### **Rank {i + 1}: {selected_factor}**")
+            if factor_name is None:
+                # Extract previously ranked factors to prevent re-ranking
+                ranked_factors = list(st.session_state.ranks[decision_title].values())
+                remaining_factors = [factor for factor in choice.factors if factor not in ranked_factors]
 
-            # Unique keys using both option index and rank index
-            base_case_key = f"option_{index}_rank_{i}_base_case"
-            base_prob_key = f"option_{index}_rank_{i}_prob_base"
-            best_case_key = f"option_{index}_rank_{i}_best_case"
-            best_prob_key = f"option_{index}_rank_{i}_prob_best"
-            worst_case_key = f"option_{index}_rank_{i}_worst_case"
+                # Select a factor and assign it a rank
+                factor_name = st.selectbox(
+                    f"Rank {rank + 1}",
+                    remaining_factors,
+                    key=f"factor_{index}_{rank}"
+                )
+                st.session_state.ranks[decision_title][rank + 1] = factor_name
 
-            # Base Case
-            col1, col2 = st.columns(2)
-            with col1:
-                choice.factors[selected_factor]['base_case'] = st.slider(
-                    f"Base Case meets need (0-3)", 0.0, 3.0,
-                    value=float(choice.factors[selected_factor]['base_case']), step=0.25,
-                    key=base_case_key
-                )
-            with col2:
-                prob_base = st.slider(
-                    f"Probability of Base Case (0-1)", 0.0, 1.0,
-                    value=float(choice.factors[selected_factor]['prob_base']), step=0.01,
-                    key=base_prob_key
-                )
-                choice.factors[selected_factor]['prob_base'] = prob_base
+            st.markdown(f"### **Rank {rank + 1}: {factor_name}**")
 
-            # Best Case
-            col1, col2 = st.columns(2)
-            with col1:
-                choice.factors[selected_factor]['best_case'] = st.slider(
-                    f"Best Case meets need (0-3)", 0.0, 3.0,
-                    value=float(choice.factors[selected_factor]['best_case']), step=0.25,
-                    key=best_case_key
-                )
-            with col2:
-                prob_best = st.slider(
-                    f"Probability of Best Case (0-{1 - prob_base:.2f})", 0.0, 1.0 - prob_base,
-                    value=float(choice.factors[selected_factor]['prob_best']), step=0.01,
-                    key=best_prob_key
-                )
-                choice.factors[selected_factor]['prob_best'] = prob_best
+            # Update the factors in the choice instance with the new rank
+            choice.factors[factor_name]['rank'] = rank + 1
 
-            # Worst Case
-            col1, col2 = st.columns(2)
-            with col1:
-                choice.factors[selected_factor]['worst_case'] = st.slider(
-                    f"Worst Case meets need (0-3)", 0.0, 3.0,
-                    value=float(choice.factors[selected_factor]['worst_case']), step=0.25,
-                    key=worst_case_key
-                )
-            with col2:
-                prob_worst = 1.0 - prob_best - prob_base
-                st.write(f"Probability of Worst Case: {prob_worst:.2f}")
-                choice.factors[selected_factor]['prob_worst'] = prob_worst
+            # Display sliders for base, best, and worst cases
+            with st.container():
+                col1, col2, col3 = st.columns(3)
+
+                with col1:
+                    base_case = st.slider(
+                        f"Base Case for {factor_name}",
+                        0.0, 3.0,
+                        value=choice.factors[factor_name]['base_case'],
+                        key=f"base_{index}_{rank}"
+                    )
+                with col2:
+                    best_case = st.slider(
+                        f"Best Case for {factor_name}",
+                        0.0, 3.0,
+                        value=choice.factors[factor_name]['best_case'],
+                        key=f"best_{index}_{rank}"
+                    )
+                with col3:
+                    worst_case = st.slider(
+                        f"Worst Case for {factor_name}",
+                        0.0, 3.0,
+                        value=choice.factors[factor_name]['worst_case'],
+                        key=f"worst_{index}_{rank}"
+                    )
+
+                # Update the factors with the new values
+                choice.factors[factor_name]['base_case'] = base_case
+                choice.factors[factor_name]['best_case'] = best_case
+                choice.factors[factor_name]['worst_case'] = worst_case
 
             st.markdown("---")
 
