@@ -153,131 +153,86 @@ def display_simulation_results(outcomes, decision_title):
 
 def show_app():
     st.subheader("Enter up to 3 options you're weighing:")
-    options = []
-    for i in range(3):
-        option_title = st.text_input(f"Option {i+1} title:", key=f"option_{i}")
-        if option_title:
-            options.append(option_title)
+    options = [st.text_input(f"Option {i+1} title:", key=f"option_{i}") for i in range(3)]
+    options = list(filter(None, options))  # Remove empty strings
 
-    if len(options) == 0:
+    if not options:
         st.warning("Please enter at least one option title to proceed.")
         return
 
-    choices = [CareerChoice() for _ in options]
+    if 'factors' not in st.session_state:
+        st.session_state.factors = ['Community', 'Career Setup', 'Public Impact', 'Job Satisfaction', 'Pay', 'Weather']
+        st.session_state.factor_rankings = {factor: idx+1 for idx, factor in enumerate(st.session_state.factors)}
+        st.session_state.rankings_confirmed = False
 
-    results_summary = {}
+    st.markdown("## Rank the factors by importance:")
+    all_factors = st.session_state.factors
+    for factor in all_factors:
+        rank = st.selectbox(
+            f"Rank for {factor}:",
+            range(1, len(all_factors) + 1),
+            index=st.session_state.factor_rankings[factor] - 1,
+            key=f"rank_{factor}"
+        )
+        st.session_state.factor_rankings[factor] = rank
 
-    for index, choice in enumerate(choices):
-        decision_title = options[index]
+    if st.button("Confirm Rankings"):
+        st.session_state.rankings_confirmed = True
 
-        all_factors = list(choice.factors.keys())
-        selected_factors = []
+    if st.session_state.rankings_confirmed:
+        choices = [CareerChoice() for _ in options]
+        results_summary = {}
 
-        st.markdown(f"## Option {index + 1}: {decision_title}")
-        st.markdown("Rank the factors by importance:")
-
-        for i, _ in enumerate(all_factors):
-            remaining_factors = [factor for factor in all_factors if factor not in selected_factors]
-            selected_factor = st.selectbox(f"Option {index + 1} - Rank {i + 1}:", remaining_factors, index=0, key=f"option_{index}_rank_{i}")
-            selected_factors.append(selected_factor)
-
-            st.markdown(f"### **Rank {i + 1}: {selected_factor}**")
-
-            # Unique keys using both option index and rank index
-            base_case_key = f"option_{index}_rank_{i}_base_case"
-            base_prob_key = f"option_{index}_rank_{i}_prob_base"
-            best_case_key = f"option_{index}_rank_{i}_best_case"
-            best_prob_key = f"option_{index}_rank_{i}_prob_best"
-            worst_case_key = f"option_{index}_rank_{i}_worst_case"
-
-            # Base Case
-            col1, col2 = st.columns(2)
-            with col1:
-                choice.factors[selected_factor]['base_case'] = st.slider(
-                    f"Base Case meets need (0-3)", 0.0, 3.0,
-                    value=float(choice.factors[selected_factor]['base_case']), step=0.25,
-                    key=base_case_key
-                )
-            with col2:
-                prob_base = st.slider(
-                    f"Probability of Base Case (0-1)", 0.0, 1.0,
-                    value=float(choice.factors[selected_factor]['prob_base']), step=0.01,
-                    key=base_prob_key
-                )
-                choice.factors[selected_factor]['prob_base'] = prob_base
-
-            # Best Case
-            col1, col2 = st.columns(2)
-            with col1:
-                choice.factors[selected_factor]['best_case'] = st.slider(
-                    f"Best Case meets need (0-3)", 0.0, 3.0,
-                    value=float(choice.factors[selected_factor]['best_case']), step=0.25,
-                    key=best_case_key
-                )
-            with col2:
-                prob_best = st.slider(
-                    f"Probability of Best Case (0-{1 - prob_base:.2f})", 0.0, 1.0 - prob_base,
-                    value=float(choice.factors[selected_factor]['prob_best']), step=0.01,
-                    key=best_prob_key
-                )
-                choice.factors[selected_factor]['prob_best'] = prob_best
-
-            # Worst Case
-            col1, col2 = st.columns(2)
-            with col1:
-                choice.factors[selected_factor]['worst_case'] = st.slider(
-                    f"Worst Case meets need (0-3)", 0.0, 3.0,
-                    value=float(choice.factors[selected_factor]['worst_case']), step=0.25,
-                    key=worst_case_key
-                )
-            with col2:
-                prob_worst = 1.0 - prob_best - prob_base
-                st.write(f"Probability of Worst Case: {prob_worst:.2f}")
-                choice.factors[selected_factor]['prob_worst'] = prob_worst
-
-            st.markdown("---")
-
-    st.subheader("Monte Carlo Simulation Parameters")
-    num_simulations = st.slider(
-        "Number of simulations:",
-        10000, 100000, 30000, 10000,
-        key="num_simulations"
-    )
-
-    if st.button("Run Simulation"):
-        outcomes_dict = {}  # Initialize a dictionary to hold outcomes for all options
         for index, choice in enumerate(choices):
             decision_title = options[index]
-            outcomes = choice.monte_carlo_simulation(num_simulations)
-            display_simulation_results(outcomes, decision_title)
-            outcomes_dict[decision_title] = outcomes  # Store outcomes in the dictionary
+            st.markdown(f"## Option {index + 1}: {decision_title}")
 
-            # Collect summary statistics for sidebar display later
+            for factor in all_factors:
+                rank = st.session_state.factor_rankings[factor]
+                choice.factors[factor]['rank'] = rank  # Set the rank from the confirmed rankings
+
+                base_case_key = f"option_{index}_{factor}_base_case"
+                best_case_key = f"option_{index}_{factor}_best_case"
+                worst_case_key = f"option_{index}_{factor}_worst_case"
+
+                base_case = st.slider(
+                    f"Base Case for {factor} (Rank {rank}):",
+                    0.0, 3.0,
+                    value=choice.factors[factor]['base_case'],
+                    key=base_case_key
+                )
+                best_case = st.slider(
+                    f"Best Case for {factor} (Rank {rank}):",
+                    0.0, 3.0,
+                    value=choice.factors[factor]['best_case'],
+                    key=best_case_key
+                )
+                worst_case = st.slider(
+                    f"Worst Case for {factor} (Rank {rank}):",
+                    0.0, 3.0,
+                    value=choice.factors[factor]['worst_case'],
+                    key=worst_case_key
+                )
+
+                choice.factors[factor]['base_case'] = base_case
+                choice.factors[factor]['best_case'] = best_case
+                choice.factors[factor]['worst_case'] = worst_case
+
+            outcomes = choice.monte_carlo_simulation(num_simulations=1000)
+            display_simulation_results(outcomes, decision_title)
+
             results_summary[decision_title] = {
                 "mean": np.mean(outcomes),
                 "25th_percentile": np.percentile(outcomes, 25),
-                "75th_percentile": np.percentile(outcomes, 75),
+                "75th_percentile": np.percentile(outcomes, 75)
             }
 
-    # Sidebar ranking display
-    if results_summary:
-        st.sidebar.header("Ranking Summary")
-
-        # Sort by mean and get the titles
-        mean_ranking = sorted(results_summary, key=lambda x: results_summary[x]["mean"], reverse=True)
-        st.sidebar.subheader("Rank by Mean")
-        for title in mean_ranking:
-            st.sidebar.write(f"{title}: {results_summary[title]['mean']:.2f}")
-
-        # Sort by spread (75th percentile - 25th percentile) and get the titles
-        spread_ranking = sorted(
-            results_summary,
-            key=lambda x: results_summary[x]["75th_percentile"] - results_summary[x]["25th_percentile"]
-        )
-        st.sidebar.subheader("Rank by Spread")
-        for title in spread_ranking:
-            spread = results_summary[title]["75th_percentile"] - results_summary[title]["25th_percentile"]
-            st.sidebar.write(f"{title}: {spread:.2f}")
+        st.sidebar.header("Results Summary")
+        for title, stats in results_summary.items():
+            st.sidebar.subheader(title)
+            st.sidebar.text(f"Mean: {stats['mean']:.2f}")
+            st.sidebar.text(f"25th Percentile: {stats['25th_percentile']:.2f}")
+            st.sidebar.text(f"75th Percentile: {stats['75th_percentile']:.2f}")
 
 
 if __name__ == "__main__":
