@@ -166,9 +166,10 @@ def show_app():
         st.warning("Please enter at least one option title to proceed.")
         return
 
-    # Initialize or update session state for ranks
+    # Initialize or update session state for ranks and initialize results_summary
     if 'ranks' not in st.session_state:
         st.session_state.ranks = {option: {} for option in options}
+    results_summary = {option: {} for option in options}  # Define results_summary
 
     choices = [CareerChoice() for _ in options]
 
@@ -181,7 +182,7 @@ def show_app():
         for rank in range(len(choice.factors)):
             factor_name = st.session_state.ranks[decision_title].get(rank + 1)
 
-            if factor_name is None:
+            if not factor_name:
                 # Extract previously ranked factors to prevent re-ranking
                 ranked_factors = list(st.session_state.ranks[decision_title].values())
                 remaining_factors = [factor for factor in choice.factors if factor not in ranked_factors]
@@ -231,48 +232,6 @@ def show_app():
                 choice.factors[factor_name]['worst_case'] = worst_case
 
             st.markdown("---")
-
-    st.subheader("Monte Carlo Simulation Parameters")
-    num_simulations = st.slider(
-        "Number of simulations:",
-        10000, 100000, 30000, 10000,
-        key="num_simulations"
-    )
-
-    if st.button("Run Simulation"):
-        outcomes_dict = {}  # Initialize a dictionary to hold outcomes for all options
-        for index, choice in enumerate(choices):
-            decision_title = options[index]
-            outcomes = choice.monte_carlo_simulation(num_simulations)
-            display_simulation_results(outcomes, decision_title)
-            outcomes_dict[decision_title] = outcomes  # Store outcomes in the dictionary
-
-            # Collect summary statistics for sidebar display later
-            results_summary[decision_title] = {
-                "mean": np.mean(outcomes),
-                "25th_percentile": np.percentile(outcomes, 25),
-                "75th_percentile": np.percentile(outcomes, 75),
-            }
-
-    # Sidebar ranking display
-    if results_summary:
-        st.sidebar.header("Ranking Summary")
-
-        # Sort by mean and get the titles
-        mean_ranking = sorted(results_summary, key=lambda x: results_summary[x]["mean"], reverse=True)
-        st.sidebar.subheader("Rank by Mean")
-        for title in mean_ranking:
-            st.sidebar.write(f"{title}: {results_summary[title]['mean']:.2f}")
-
-        # Sort by spread (75th percentile - 25th percentile) and get the titles
-        spread_ranking = sorted(
-            results_summary,
-            key=lambda x: results_summary[x]["75th_percentile"] - results_summary[x]["25th_percentile"]
-        )
-        st.sidebar.subheader("Rank by Spread")
-        for title in spread_ranking:
-            spread = results_summary[title]["75th_percentile"] - results_summary[title]["25th_percentile"]
-            st.sidebar.write(f"{title}: {spread:.2f}")
 
 
 if __name__ == "__main__":
