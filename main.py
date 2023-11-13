@@ -2,108 +2,43 @@ import streamlit as st
 import random
 import numpy as np
 import matplotlib.pyplot as plt
-from reportlab.lib.pagesizes import letter
-from reportlab.pdfgen import canvas
-from reportlab.lib.utils import ImageReader
 import base64
 import io
 
-def generate_pdf(outcomes, results_summary):
-    pdf_output = io.BytesIO()
-    c = canvas.Canvas(pdf_output, pagesize=letter)
-    width, height = letter
-
-    y_position = height - 30
-
-    for title, stats in results_summary.items():
-        c.drawString(30, y_position, f"Stats for {title}")
-        y_position -= 20
-        c.drawString(30, y_position, f"Mean: {stats['mean']:.2f}")
-        y_position -= 20
-        c.drawString(30, y_position, f"25th Percentile: {stats['25th_percentile']:.2f}")
-        y_position -= 20
-        c.drawString(30, y_position, f"75th Percentile: {stats['75th_percentile']:.2f}")
-        y_position -= 20
-
-        fig = plt.figure()
-        display_simulation_results(outcomes[title], title)
-        image_stream = save_fig_to_png(fig)
-        plt.close(fig)
-
-        image = ImageReader(image_stream)
-        c.drawImage(image, 30, y_position, width=500, preserveAspectRatio=True, anchor='c')
-        y_position -= 240  # Adjust as necessary based on your image sizes
-
-        if y_position < 100:  # Check to avoid drawing over the bottom page limit
-            c.showPage()
-            y_position = height - 30
-
-    c.save()
-    pdf_output.seek(0)
-
-    return pdf_output
 
 class CareerChoice:
     def __init__(self):
         self.initialize_factors()
 
     def initialize_factors(self):
-        self.factors = {
-            'Community': {
-                'rank': 1,
-                'base_case': 3.00,
-                'best_case': 0.00,
-                'worst_case': 0.00,
-                'prob_best': 0.0,
-                'prob_worst': 0.0,
-                'prob_base': 0.5  # Added this line
-            },
-            'Career Setup': {
-                'rank': 2,
-                'base_case': 2.50,
-                'best_case': 0.00,
-                'worst_case': 0.00,
-                'prob_best': 0.0,
-                'prob_worst': 0.0,
-                'prob_base': 0.5  # Added this line
-            },
-            'Public Impact': {
-                'rank': 3,
-                'base_case': 0.00,
-                'best_case': 0.00,
-                'worst_case': 0.00,
-                'prob_best': 0.0,
-                'prob_worst': 0.0,
-                'prob_base': 0.5  # Added this line
-            },
-            'Job Satisfaction': {
-                'rank': 4,
-                'base_case': 1.00,
-                'best_case': 0.00,
-                'worst_case': 0.00,
-                'prob_best': 0.0,
-                'prob_worst': 0.0,
-                'prob_base': 0.5  # Added this line
-            },
-            'Pay': {
-                'rank': 5,
-                'base_case': 3.00,
-                'best_case': 0.00,
-                'worst_case': 0.00,
-                'prob_best': 0.0,
-                'prob_worst': 0.0,
-                'prob_base': 0.5  # Added this line
-            },
-            'Weather': {
-                'rank': 6,
-                'base_case': 2.00,
-                'best_case': 0.00,
-                'worst_case': 0.00,
-                'prob_best': 0.0,
-                'prob_worst': 0.0,
-                'prob_base': 0.5  # Added this line
-            },
+        default_factor = {
+            'rank': 0,
+            'base_case': 0.00,
+            'best_case': 0.00,
+            'worst_case': 0.00,
+            'prob_best': 0.0,
+            'prob_worst': 0.0,
+            'prob_base': 0.0
         }
+
+        factor_names = [
+            'Career Setup',
+            'Community',
+            'Health',
+            'Hobbies',
+            'Home Situation',
+            'Job Satisfaction',
+            'Learning',
+            'Location/Where I Live',
+            'Mentorship',
+            'Pay',
+            'Pet',
+            'Public Impact',
+            'Nature/Weather',
+            'Travel'
+        ]
+
+        self.factors = {factor: dict(default_factor, rank=i + 1) for i, factor in enumerate(sorted(factor_names))}
 
     def calculate_score(self):
         total = 0
@@ -153,123 +88,108 @@ def display_simulation_results(outcomes, decision_title):
 
 def show_app():
     st.subheader("Enter up to 3 options you're weighing:")
-    options = []
-    for i in range(3):
-        option_title = st.text_input(f"Option {i+1} title:", key=f"option_{i}")
-        if option_title:
-            options.append(option_title)
+    option_titles = ["Option A", "Option B", "Option C"]
+    options = {}
+    results_summary = {}
 
-    if len(options) == 0:
+    for i, title in enumerate(option_titles):
+        option_input = st.text_input(f"{title} title:", key=f"option_{i}")
+        if option_input:
+            options[title] = option_input
+
+    if not options:
         st.warning("Please enter at least one option title to proceed.")
         return
 
-    choices = [CareerChoice() for _ in options]
+    all_factors = list(CareerChoice().factors.keys())
+    selected_factors = st.multiselect("Select your top 6 factors:", all_factors, default=[])
 
-    results_summary = {}
+    if len(selected_factors) != 6:
+        st.error("Please select exactly 6 factors.")
+        return
 
-    for index, choice in enumerate(choices):
-        decision_title = options[index]
+    choices = {title: CareerChoice() for title in options}
 
-        all_factors = list(choice.factors.keys())
-        selected_factors = []
+    for index, factor in enumerate(selected_factors, start=1):
+        st.markdown(f"## Rank {index}: {factor}")
+        for title, choice in choices.items():
+            st.markdown(f"### {title}: {options[title]}")
 
-        st.markdown(f"## Option {index + 1}: {decision_title}")
-        st.markdown("Rank the factors by importance:")
+            base_case_key = f"{title}_{factor}_base_case"
+            base_prob_key = f"{title}_{factor}_prob_base"
+            best_case_key = f"{title}_{factor}_best_case"
+            best_prob_key = f"{title}_{factor}_prob_best"
+            worst_case_key = f"{title}_{factor}_worst_case"
 
-        for i, _ in enumerate(all_factors):
-            remaining_factors = [factor for factor in all_factors if factor not in selected_factors]
-            selected_factor = st.selectbox(f"Option {index + 1} - Rank {i + 1}:", remaining_factors, index=0, key=f"option_{index}_rank_{i}")
-            selected_factors.append(selected_factor)
-
-            st.markdown(f"### **Rank {i + 1}: {selected_factor}**")
-
-            # Unique keys using both option index and rank index
-            base_case_key = f"option_{index}_rank_{i}_base_case"
-            base_prob_key = f"option_{index}_rank_{i}_prob_base"
-            best_case_key = f"option_{index}_rank_{i}_best_case"
-            best_prob_key = f"option_{index}_rank_{i}_prob_best"
-            worst_case_key = f"option_{index}_rank_{i}_worst_case"
-
-            # Base Case
+            # Sliders
             col1, col2 = st.columns(2)
             with col1:
-                choice.factors[selected_factor]['base_case'] = st.slider(
-                    f"Base Case meets need (0-3)", 0.0, 3.0,
-                    value=float(choice.factors[selected_factor]['base_case']), step=0.25,
-                    key=base_case_key
+                base_case_value = st.slider(
+                    "Base Case meets need (0-3)", min_value=0.0, max_value=3.0,
+                    value=0.0, step=0.25, key=base_case_key
                 )
             with col2:
-                prob_base = st.slider(
-                    f"Probability of Base Case (0-1)", 0.0, 1.0,
-                    value=float(choice.factors[selected_factor]['prob_base']), step=0.01,
-                    key=base_prob_key
+                prob_base_value = st.slider(
+                    "Probability of Base Case (0-1)", min_value=0.0, max_value=1.0,
+                    value=0.0, step=0.01, key=base_prob_key
                 )
-                choice.factors[selected_factor]['prob_base'] = prob_base
 
-            # Best Case
             col1, col2 = st.columns(2)
             with col1:
-                choice.factors[selected_factor]['best_case'] = st.slider(
-                    f"Best Case meets need (0-3)", 0.0, 3.0,
-                    value=float(choice.factors[selected_factor]['best_case']), step=0.25,
-                    key=best_case_key
+                best_case_value = st.slider(
+                    "Best Case meets need (0-3)", min_value=0.0, max_value=3.0,
+                    value=0.0, step=0.25, key=best_case_key
                 )
             with col2:
-                prob_best = st.slider(
-                    f"Probability of Best Case (0-{1 - prob_base:.2f})", 0.0, 1.0 - prob_base,
-                    value=float(choice.factors[selected_factor]['prob_best']), step=0.01,
-                    key=best_prob_key
+                prob_best_value = st.slider(
+                    "Probability of Best Case (0-1)", min_value=0.0, max_value=1.0 - prob_base_value,
+                    value=0.0, step=0.01, key=best_prob_key
                 )
-                choice.factors[selected_factor]['prob_best'] = prob_best
 
-            # Worst Case
             col1, col2 = st.columns(2)
             with col1:
-                choice.factors[selected_factor]['worst_case'] = st.slider(
-                    f"Worst Case meets need (0-3)", 0.0, 3.0,
-                    value=float(choice.factors[selected_factor]['worst_case']), step=0.25,
-                    key=worst_case_key
+                worst_case_value = st.slider(
+                    "Worst Case meets need (0-3)", min_value=0.0, max_value=3.0,
+                    value=0.0, step=0.25, key=worst_case_key
                 )
             with col2:
-                prob_worst = 1.0 - prob_best - prob_base
-                st.write(f"Probability of Worst Case: {prob_worst:.2f}")
-                choice.factors[selected_factor]['prob_worst'] = prob_worst
+                prob_worst_value = 1.0 - prob_best_value - prob_base_value
+                st.write(f"Probability of Worst Case: {prob_worst_value:.2f}")
+
+            # Update the factors for the current choice object
+            choice.factors[factor]['base_case'] = base_case_value
+            choice.factors[factor]['prob_base'] = prob_base_value
+            choice.factors[factor]['best_case'] = best_case_value
+            choice.factors[factor]['prob_best'] = prob_best_value
+            choice.factors[factor]['worst_case'] = worst_case_value
+            choice.factors[factor]['prob_worst'] = prob_worst_value
 
             st.markdown("---")
 
+    # Monte Carlo Simulation Parameters and Execution
     st.subheader("Monte Carlo Simulation Parameters")
-    num_simulations = st.slider(
-        "Number of simulations:",
-        10000, 100000, 30000, 10000,
-        key="num_simulations"
-    )
+    num_simulations = st.slider("Number of simulations:", min_value=10000, max_value=100000, value=30000, step=10000)
 
     if st.button("Run Simulation"):
-        outcomes_dict = {}  # Initialize a dictionary to hold outcomes for all options
         for index, choice in enumerate(choices):
             decision_title = options[index]
             outcomes = choice.monte_carlo_simulation(num_simulations)
             display_simulation_results(outcomes, decision_title)
-            outcomes_dict[decision_title] = outcomes  # Store outcomes in the dictionary
-
-            # Collect summary statistics for sidebar display later
+            # Update results_summary for each option
             results_summary[decision_title] = {
                 "mean": np.mean(outcomes),
                 "25th_percentile": np.percentile(outcomes, 25),
                 "75th_percentile": np.percentile(outcomes, 75),
             }
 
-    # Sidebar ranking display
+    # Display results summary in the sidebar
     if results_summary:
         st.sidebar.header("Ranking Summary")
-
-        # Sort by mean and get the titles
         mean_ranking = sorted(results_summary, key=lambda x: results_summary[x]["mean"], reverse=True)
         st.sidebar.subheader("Rank by Mean")
         for title in mean_ranking:
             st.sidebar.write(f"{title}: {results_summary[title]['mean']:.2f}")
 
-        # Sort by spread (75th percentile - 25th percentile) and get the titles
         spread_ranking = sorted(
             results_summary,
             key=lambda x: results_summary[x]["75th_percentile"] - results_summary[x]["25th_percentile"]
@@ -279,9 +199,9 @@ def show_app():
             spread = results_summary[title]["75th_percentile"] - results_summary[title]["25th_percentile"]
             st.sidebar.write(f"{title}: {spread:.2f}")
 
-
+# Ensure that the CareerChoice class and other functions are defined above this point
 if __name__ == "__main__":
-    st.title("Think Analytically About Your Career")
+    st.title("Thinking Analytically About Your Career")
     show_app()
 
 
