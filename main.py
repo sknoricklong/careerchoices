@@ -171,11 +171,11 @@ def show_app():
     num_simulations = st.slider("Number of simulations:", min_value=10000, max_value=100000, value=30000, step=10000)
 
     if st.button("Run Simulation"):
-        for index, choice in enumerate(choices):
-            decision_title = options[index]
+        # We need to iterate over the items of choices, not enumerate
+        for decision_title, choice in choices.items():
             outcomes = choice.monte_carlo_simulation(num_simulations)
             display_simulation_results(outcomes, decision_title)
-            # Update results_summary for each option
+            # Update results_summary for each option using the decision_title from the choices dictionary
             results_summary[decision_title] = {
                 "mean": np.mean(outcomes),
                 "25th_percentile": np.percentile(outcomes, 25),
