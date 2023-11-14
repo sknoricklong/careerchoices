@@ -59,7 +59,7 @@ class CareerChoice:
         return outcomes
 
 
-def display_simulation_results(outcomes, decision_title):
+def display_simulation_results(outcomes, decision_title, user_input_title):
     fig, ax = plt.subplots()
     ax.hist(outcomes, bins=30, edgecolor='k', alpha=0.75)
 
@@ -75,11 +75,13 @@ def display_simulation_results(outcomes, decision_title):
 
     ax.set_xlabel('Score')
     ax.set_ylabel('Frequency')
-    ax.set_title(f'Distribution for {decision_title}')
+    ax.set_title(f'Distribution for {decision_title}: {user_input_title}')  # This line ensures the option name is in the title
     ax.legend()
     st.pyplot(fig)
 
-    st.sidebar.write(f"**{decision_title}**")
+    # This block of code adds the option titles to the sidebar.
+    combined_title = f"{decision_title}: {user_input_title}"
+    st.sidebar.write(f"**{combined_title}**")
     st.sidebar.write(f"Mean: {mean_outcome:.2f}")
     st.sidebar.write(f"25th Percentile: {percentile_25:.2f}")
     st.sidebar.write(f"75th Percentile: {percentile_75:.2f}")
@@ -171,33 +173,37 @@ def show_app():
     num_simulations = st.slider("Number of simulations:", min_value=10000, max_value=100000, value=30000, step=10000)
 
     if st.button("Run Simulation"):
-        # We need to iterate over the items of choices, not enumerate
-        for decision_title, choice in choices.items():
+        for placeholder_title, choice in choices.items():
             outcomes = choice.monte_carlo_simulation(num_simulations)
-            display_simulation_results(outcomes, decision_title)
-            # Update results_summary for each option using the decision_title from the choices dictionary
-            results_summary[decision_title] = {
+            user_input_title = options[placeholder_title]  # Retrieve the user-inputted title
+            display_simulation_results(outcomes, placeholder_title, user_input_title)
+            # Use a combined title for the results_summary
+            combined_title = f"{placeholder_title}: {user_input_title}"
+            results_summary[combined_title] = {
                 "mean": np.mean(outcomes),
                 "25th_percentile": np.percentile(outcomes, 25),
                 "75th_percentile": np.percentile(outcomes, 75),
             }
 
-    # Display results summary in the sidebar
+    # After simulation, display the results summary in the sidebar with user-inputted titles
     if results_summary:
         st.sidebar.header("Ranking Summary")
+        # Sort by mean and display
         mean_ranking = sorted(results_summary, key=lambda x: results_summary[x]["mean"], reverse=True)
         st.sidebar.subheader("Rank by Mean")
-        for title in mean_ranking:
-            st.sidebar.write(f"{title}: {results_summary[title]['mean']:.2f}")
+        for user_input_title in mean_ranking:
+            st.sidebar.write(f"{user_input_title}: {results_summary[user_input_title]['mean']:.2f}")
 
+        # Sort by spread and display
         spread_ranking = sorted(
             results_summary,
             key=lambda x: results_summary[x]["75th_percentile"] - results_summary[x]["25th_percentile"]
         )
         st.sidebar.subheader("Rank by Spread")
-        for title in spread_ranking:
-            spread = results_summary[title]["75th_percentile"] - results_summary[title]["25th_percentile"]
-            st.sidebar.write(f"{title}: {spread:.2f}")
+        for user_input_title in spread_ranking:
+            spread = results_summary[user_input_title]["75th_percentile"] - results_summary[user_input_title][
+                "25th_percentile"]
+            st.sidebar.write(f"{user_input_title}: {spread:.2f}")
 
 # Ensure that the CareerChoice class and other functions are defined above this point
 if __name__ == "__main__":
