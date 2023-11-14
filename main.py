@@ -63,7 +63,7 @@ class CareerChoice:
         return outcomes
 
 
-def display_simulation_results(outcomes, decision_title, user_input_title):
+def display_simulation_results(outcomes, decision_title, user_input_title, min_score, max_score):
     fig, ax = plt.subplots()
     ax.hist(outcomes, bins=30, edgecolor='k', alpha=0.75)
 
@@ -79,6 +79,7 @@ def display_simulation_results(outcomes, decision_title, user_input_title):
 
     ax.set_xlabel('Score')
     ax.set_ylabel('Frequency')
+    ax.set_xlim(min_score, max_score)
     ax.set_title(f'Distribution for {decision_title}: {user_input_title}')  # This line ensures the option name is in the title
     ax.legend()
     st.pyplot(fig)
@@ -153,21 +154,51 @@ def show_app():
 
             st.markdown("---")
 
+    global_min_score = float('inf')
+    global_max_score = float('-inf')
+
     # Monte Carlo Simulation Parameters and Execution
     num_simulations = st.slider("Number of simulations:", min_value=10000, max_value=100000, value=30000, step=10000)
     results_summary = {}
+    all_outcomes = []
 
     if st.button("Run Simulation"):
-        for placeholder_title, choice in choices.items():
+        # Initialize an empty list to store all outcomes across all simulations
+        all_outcomes = []
+
+        # Initialize a dictionary to store the summary results for display later
+        results_summary = {}
+
+        # Run the Monte Carlo simulation for each option and collect outcomes
+        for title, choice in choices.items():
             outcomes = choice.monte_carlo_simulation(num_simulations)
-            user_input_title = options[placeholder_title]
-            display_simulation_results(outcomes, placeholder_title, user_input_title)
-            combined_title = f"{placeholder_title}: {user_input_title}"
-            results_summary[combined_title] = {
-                "mean": np.mean(outcomes),
-                "25th_percentile": np.percentile(outcomes, 25),
-                "75th_percentile": np.percentile(outcomes, 75),
+            all_outcomes.extend(outcomes)  # Store all outcomes for global range calculation
+            user_input_title = options[title]
+
+            # Calculate and store statistics for the current outcomes
+            mean_outcome = np.mean(outcomes)
+            percentile_25 = np.percentile(outcomes, 25)
+            percentile_75 = np.percentile(outcomes, 75)
+
+            # Store the results in the summary dictionary
+            results_summary[user_input_title] = {
+                "mean": mean_outcome,
+                "25th_percentile": percentile_25,
+                "75th_percentile": percentile_75,
             }
+
+        # Determine global min and max scores from all collected outcomes
+        global_min_score = min(all_outcomes) if all_outcomes else None
+        global_max_score = max(all_outcomes) if all_outcomes else None
+
+        # Display the simulation results for each option using the calculated global score range
+        for title, choice in choices.items():
+            user_input_title = options[title]
+            outcomes = choice.monte_carlo_simulation(
+                num_simulations)  # This simulation is redundant; remove or comment out
+            display_simulation_results(
+                outcomes, title, user_input_title, global_min_score, global_max_score
+            )
 
     if results_summary:
         st.sidebar.header("Ranking Summary")
@@ -189,6 +220,3 @@ def show_app():
 if __name__ == "__main__":
     st.title("Thinking Analytically About Your Career")
     show_app()
-
-
-
