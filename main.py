@@ -16,9 +16,7 @@ class CareerChoice:
             'base_case': 0.00,
             'best_case': 0.00,
             'worst_case': 0.00,
-            'prob_best': 0.0,
-            'prob_worst': 0.0,
-            'prob_base': 0.0
+            'probability_base_case': 0.5  # Added a probability for the base case
         }
 
         factor_names = [
@@ -40,16 +38,22 @@ class CareerChoice:
 
         self.factors = {factor: dict(default_factor, rank=i + 1) for i, factor in enumerate(sorted(factor_names))}
 
+    def calculate_normal_distribution_params(self, base, low, high, probability_base_case):
+        # Calculate mean and standard deviation for normal distribution with base case probability
+        mean = (base * probability_base_case) + (low * (1 - probability_base_case) / 2) + (high * (1 - probability_base_case) / 2)
+        # Adjust the standard deviation to account for the probability of the base case
+        std_dev = (high - low) / (2 * 1.645) * (1 - probability_base_case)  # Using 1.645 since it is the z-score for the 90th percentile
+        return mean, std_dev
+
     def calculate_score(self):
         total = 0
         for v in self.factors.values():
-            rand_val = random.random()
-            if rand_val < v['prob_best']:
-                total += v['rank'] * v['best_case']
-            elif rand_val < (v['prob_best'] + v['prob_base']):
-                total += v['rank'] * v['base_case']
-            else:
-                total += v['rank'] * v['worst_case']
+            mean, std_dev = self.calculate_normal_distribution_params(
+                v['base_case'], v['worst_case'], v['best_case'], v['probability_base_case']
+            )
+            # Draw a sample from the normal distribution
+            sample = np.random.normal(mean, std_dev)
+            total += v['rank'] * sample
         return total
 
     def monte_carlo_simulation(self, num_simulations=1000):
@@ -92,7 +96,6 @@ def show_app():
     st.subheader("Enter up to 3 options you're weighing:")
     option_titles = ["Option A", "Option B", "Option C"]
     options = {}
-    results_summary = {}
 
     for i, title in enumerate(option_titles):
         option_input = st.text_input(f"{title} title:", key=f"option_{i}")
@@ -118,66 +121,47 @@ def show_app():
             st.markdown(f"### {title}: {options[title]}")
 
             base_case_key = f"{title}_{factor}_base_case"
-            base_prob_key = f"{title}_{factor}_prob_base"
             best_case_key = f"{title}_{factor}_best_case"
-            best_prob_key = f"{title}_{factor}_prob_best"
             worst_case_key = f"{title}_{factor}_worst_case"
 
-            # Sliders
-            col1, col2 = st.columns(2)
+            col1, col2, col3 = st.columns(3)
             with col1:
                 base_case_value = st.slider(
-                    "Base Case meets need (0-3)", min_value=0.0, max_value=3.0,
-                    value=0.0, step=0.25, key=base_case_key
+                    "Base Case (0-3)", min_value=0.0, max_value=3.0,
+                    value=1.5, step=0.01, key=base_case_key
+                )
+                base_case_probability = st.slider(  # Add this slider for base case probability
+                    "Probability of Base Case", min_value=0.0, max_value=1.0,
+                    value=0.5, step=0.01, key=f"{base_case_key}_prob"
                 )
             with col2:
-                prob_base_value = st.slider(
-                    "Probability of Base Case (0-1)", min_value=0.0, max_value=1.0,
-                    value=0.0, step=0.01, key=base_prob_key
-                )
-
-            col1, col2 = st.columns(2)
-            with col1:
                 best_case_value = st.slider(
-                    "Best Case meets need (0-3)", min_value=0.0, max_value=3.0,
-                    value=0.0, step=0.25, key=best_case_key
+                    "High Case (Top 90%) (0-3)", min_value=0.0, max_value=3.0,
+                    value=2.5, step=0.01, key=best_case_key
                 )
-            with col2:
-                prob_best_value = st.slider(
-                    "Probability of Best Case (0-1)", min_value=0.0, max_value=1.0 - prob_base_value,
-                    value=0.0, step=0.01, key=best_prob_key
-                )
-
-            col1, col2 = st.columns(2)
-            with col1:
+            with col3:
                 worst_case_value = st.slider(
-                    "Worst Case meets need (0-3)", min_value=0.0, max_value=3.0,
-                    value=0.0, step=0.25, key=worst_case_key
+                    "Low Case (Bottom 10%) (0-3)", min_value=0.0, max_value=3.0,
+                    value=0.5, step=0.01, key=worst_case_key
                 )
-            with col2:
-                prob_worst_value = 1.0 - prob_best_value - prob_base_value
-                st.write(f"Probability of Worst Case: {prob_worst_value:.2f}")
 
             # Update the factors for the current choice object
             choice.factors[factor]['base_case'] = base_case_value
-            choice.factors[factor]['prob_base'] = prob_base_value
+            choice.factors[factor]['probability_base_case'] = base_case_probability
             choice.factors[factor]['best_case'] = best_case_value
-            choice.factors[factor]['prob_best'] = prob_best_value
             choice.factors[factor]['worst_case'] = worst_case_value
-            choice.factors[factor]['prob_worst'] = prob_worst_value
 
             st.markdown("---")
 
     # Monte Carlo Simulation Parameters and Execution
-    st.subheader("Monte Carlo Simulation Parameters")
     num_simulations = st.slider("Number of simulations:", min_value=10000, max_value=100000, value=30000, step=10000)
+    results_summary = {}
 
     if st.button("Run Simulation"):
         for placeholder_title, choice in choices.items():
             outcomes = choice.monte_carlo_simulation(num_simulations)
-            user_input_title = options[placeholder_title]  # Retrieve the user-inputted title
+            user_input_title = options[placeholder_title]
             display_simulation_results(outcomes, placeholder_title, user_input_title)
-            # Use a combined title for the results_summary
             combined_title = f"{placeholder_title}: {user_input_title}"
             results_summary[combined_title] = {
                 "mean": np.mean(outcomes),
@@ -185,24 +169,20 @@ def show_app():
                 "75th_percentile": np.percentile(outcomes, 75),
             }
 
-    # After simulation, display the results summary in the sidebar with user-inputted titles
     if results_summary:
         st.sidebar.header("Ranking Summary")
-        # Sort by mean and display
         mean_ranking = sorted(results_summary, key=lambda x: results_summary[x]["mean"], reverse=True)
         st.sidebar.subheader("Rank by Mean")
         for user_input_title in mean_ranking:
             st.sidebar.write(f"{user_input_title}: {results_summary[user_input_title]['mean']:.2f}")
 
-        # Sort by spread and display
         spread_ranking = sorted(
             results_summary,
             key=lambda x: results_summary[x]["75th_percentile"] - results_summary[x]["25th_percentile"]
         )
         st.sidebar.subheader("Rank by Spread")
         for user_input_title in spread_ranking:
-            spread = results_summary[user_input_title]["75th_percentile"] - results_summary[user_input_title][
-                "25th_percentile"]
+            spread = results_summary[user_input_title]["75th_percentile"] - results_summary[user_input_title]["25th_percentile"]
             st.sidebar.write(f"{user_input_title}: {spread:.2f}")
 
 # Ensure that the CareerChoice class and other functions are defined above this point
