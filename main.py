@@ -2,8 +2,6 @@ import streamlit as st
 import random
 import numpy as np
 import matplotlib.pyplot as plt
-import base64
-import io
 
 
 class CareerChoice:
@@ -16,7 +14,6 @@ class CareerChoice:
             'base_case': 0.00,
             'best_case': 0.00,
             'worst_case': 0.00,
-            'probability_base_case': 0.5  # Added a probability for the base case
         }
 
         factor_names = [
@@ -38,25 +35,24 @@ class CareerChoice:
 
         self.factors = {factor: dict(default_factor, rank=i + 1) for i, factor in enumerate(sorted(factor_names))}
 
-    def calculate_normal_distribution_params(self, base, low, high, probability_base_case):
-        # Calculate mean and standard deviation for normal distribution with base case probability
-        mean = (base * probability_base_case) + (low * (1 - probability_base_case) / 2) + (high * (1 - probability_base_case) / 2)
-        # Adjust the standard deviation to account for the probability of the base case
-        std_dev = (high - low) / (2 * 1.645) * (1 - probability_base_case)  # Using 1.645 since it is the z-score for the 90th percentile
+    def calculate_normal_distribution_params(self, base, low, high):
+        # Calculate mean and standard deviation for normal distribution
+        mean = (base + low + high) / 3
+        std_dev = (high - low) / 6  # Assuming a 99.7% range for standard deviation
         return mean, std_dev
 
     def calculate_score(self):
         total = 0
         for v in self.factors.values():
             mean, std_dev = self.calculate_normal_distribution_params(
-                v['base_case'], v['worst_case'], v['best_case'], v['probability_base_case']
+                v['base_case'], v['worst_case'], v['best_case']
             )
             # Draw a sample from the normal distribution
             sample = np.random.normal(mean, std_dev)
             total += v['rank'] * sample
         return total
 
-    def monte_carlo_simulation(self, num_simulations=1000):
+    def monte_carlo_simulation(self, num_simulations=10000):
         outcomes = []
         for _ in range(num_simulations):
             outcomes.append(self.calculate_score())
@@ -80,7 +76,7 @@ def display_simulation_results(outcomes, decision_title, user_input_title, min_s
     ax.set_xlabel('Score')
     ax.set_ylabel('Frequency')
     ax.set_xlim(min_score, max_score)
-    ax.set_title(f'Distribution for {decision_title}: {user_input_title}')  # This line ensures the option name is in the title
+    ax.set_title(f'Distribution for {decision_title}: {user_input_title}')
     ax.legend()
     st.pyplot(fig)
 
@@ -131,10 +127,6 @@ def show_app():
                     "Base Case (0-3)", min_value=0.0, max_value=3.0,
                     value=1.5, step=0.01, key=base_case_key
                 )
-                base_case_probability = st.slider(  # Add this slider for base case probability
-                    "Probability of Base Case", min_value=0.0, max_value=1.0,
-                    value=0.5, step=0.01, key=f"{base_case_key}_prob"
-                )
             with col2:
                 best_case_value = st.slider(
                     "High Case (Top 90%) (0-3)", min_value=0.0, max_value=3.0,
@@ -148,7 +140,6 @@ def show_app():
 
             # Update the factors for the current choice object
             choice.factors[factor]['base_case'] = base_case_value
-            choice.factors[factor]['probability_base_case'] = base_case_probability
             choice.factors[factor]['best_case'] = best_case_value
             choice.factors[factor]['worst_case'] = worst_case_value
 
@@ -158,7 +149,7 @@ def show_app():
     global_max_score = float('-inf')
 
     # Monte Carlo Simulation Parameters and Execution
-    num_simulations = st.slider("Number of simulations:", min_value=10000, max_value=100000, value=30000, step=10000)
+    num_simulations = st.slider("Number of simulations:", min_value=10000, max_value=100000, value=10000, step=10000)
     results_summary = {}
     all_outcomes = []
 
@@ -194,8 +185,7 @@ def show_app():
         # Display the simulation results for each option using the calculated global score range
         for title, choice in choices.items():
             user_input_title = options[title]
-            outcomes = choice.monte_carlo_simulation(
-                num_simulations)  # This simulation is redundant; remove or comment out
+            outcomes = choice.monte_carlo_simulation(num_simulations)
             display_simulation_results(
                 outcomes, title, user_input_title, global_min_score, global_max_score
             )
