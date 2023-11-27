@@ -130,7 +130,7 @@ def show_app():
             with col2:
                 best_case_value = st.slider(
                     "High Case (Top 90%) (0-3)", min_value=0.0, max_value=3.0,
-                    value=2.5, step=0.04, key=best_case_key
+                    value=2.5, step=0.05, key=best_case_key
                 )
             with col3:
                 worst_case_value = st.slider(
