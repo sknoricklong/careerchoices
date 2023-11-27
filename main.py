@@ -94,6 +94,34 @@ def show_app():
     option_titles = ["Option A", "Option B", "Option C"]
     options = {}
 
+    # Predefined values for "Privacy in Seattle"
+    predefined_privacy = {
+        'Community': (1.4, 2.0, 0.25),
+        'Career Setup': (2.45, 2.55, 1.3),
+        'Public Impact': (1.5, 2.1, 1.0),
+        'Job Satisfaction': (1.75, 2.7, 1.25),
+        'Pay': (2.0, 2.55, 1.5),
+        'Nature/Weather': (1.5, 2.5, 1.1)
+    }
+
+    predefined_antitrust = {
+        'Community': (2.25, 2.8, 1.7),
+        'Career Setup': (2.4, 2.5, 1.85),
+        'Public Impact': (0.25, 0.75, 0.0),
+        'Job Satisfaction': (1.0, 1.5, 0.2),
+        'Pay': (2.9, 3.0, 2.6),
+        'Nature/Weather': (2.0, 2.2, 1.5)
+    }
+
+    predefined_tech = {
+        'Community': (2.25, 2.6, 1.5),
+        'Career Setup': (1.85, 3.0, 1.15),
+        'Public Impact': (2.0, 2.85, 1.3),
+        'Job Satisfaction': (1.9, 3.0, 0.4),
+        'Pay': (0.75, 1.35, 0.15),
+        'Nature/Weather': (2.0, 2.5, 1.4)
+    }
+
     for i, title in enumerate(option_titles):
         option_input = st.text_input(f"{title} title:", key=f"option_{i}")
         if option_input:
@@ -117,6 +145,18 @@ def show_app():
         for title, choice in choices.items():
             st.markdown(f"### {title}: {options[title]}")
 
+            # Check if the option is "Privacy in Seattle" and set predefined values if it is
+            if options[title] == "Privacy in Seattle" and factor in predefined_privacy:
+                base, high, low = predefined_privacy[factor]
+            elif options[title] == "Antitrust in DC" and factor in predefined_antitrust:
+                base, high, low = predefined_antitrust[factor]
+            elif options[title] == "Tech in DC" and factor in predefined_tech:
+                base, high, low = predefined_tech[factor]
+            else:
+                base = 1.5
+                high = 2.5
+                low = 0.5
+
             base_case_key = f"{title}_{factor}_base_case"
             best_case_key = f"{title}_{factor}_best_case"
             worst_case_key = f"{title}_{factor}_worst_case"
@@ -125,17 +165,17 @@ def show_app():
             with col1:
                 base_case_value = st.slider(
                     "Base Case (0-3)", min_value=0.0, max_value=3.0,
-                    value=1.5, step=0.05, key=base_case_key
+                    value=base, step=0.05, key=base_case_key
                 )
             with col2:
                 best_case_value = st.slider(
                     "High Case (Top 90%) (0-3)", min_value=0.0, max_value=3.0,
-                    value=2.5, step=0.05, key=best_case_key
+                    value=high, step=0.05, key=best_case_key
                 )
             with col3:
                 worst_case_value = st.slider(
                     "Low Case (Bottom 10%) (0-3)", min_value=0.0, max_value=3.0,
-                    value=0.5, step=0.05, key=worst_case_key
+                    value=low, step=0.05, key=worst_case_key
                 )
 
             # Update the factors for the current choice object
