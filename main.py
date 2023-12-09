@@ -193,45 +193,58 @@ def show_app():
     results_summary = {}
     all_outcomes = []
 
-    if st.button("Run Simulation"):
-        # Initialize an empty list to store all outcomes across all simulations
-        all_outcomes = []
+    def display_box_and_whisker_plot(results_summary, global_min_score, global_max_score):
+        fig, ax = plt.subplots()
 
-        # Initialize a dictionary to store the summary results for display later
+        # Sort the data by best case (e.g., mean)
+        sorted_titles = sorted(results_summary, key=lambda x: results_summary[x]['mean'], reverse=True)
+
+        # Prepare sorted data for the box plot
+        data = [results_summary[title]['outcomes'] for title in sorted_titles]
+
+        # Create the box plot
+        box = ax.boxplot(data, labels=sorted_titles, showfliers=False, patch_artist=True)
+
+        ax.set_xlabel('Options')
+        ax.set_ylabel('Score')
+        ax.set_ylim(global_min_score, global_max_score)
+        ax.set_title('Box and Whisker Plot of Career Options')
+
+        # Rotate labels for better readability
+        plt.xticks(rotation=45)
+
+        st.pyplot(fig)
+
+    # Modify the button click logic
+    if st.button("Run Simulation"):
+        # Initialize a dictionary to store the outcomes for each option
         results_summary = {}
 
         # Run the Monte Carlo simulation for each option and collect outcomes
         for title, choice in choices.items():
             outcomes = choice.monte_carlo_simulation(num_simulations)
-            all_outcomes.extend(outcomes)  # Store all outcomes for global range calculation
-            user_input_title = options[title]
-
-            # Calculate and store statistics for the current outcomes
             mean_outcome = np.mean(outcomes)
             percentile_25 = np.percentile(outcomes, 25)
             percentile_75 = np.percentile(outcomes, 75)
 
-            # Store the results in the summary dictionary
-            results_summary[user_input_title] = {
-                "mean": mean_outcome,
-                "25th_percentile": percentile_25,
-                "75th_percentile": percentile_75,
+            results_summary[options[title]] = {
+                'outcomes': outcomes,
+                'mean': mean_outcome,
+                '25th_percentile': percentile_25,
+                '75th_percentile': percentile_75,
             }
 
         # Determine global min and max scores from all collected outcomes
+        all_outcomes = [outcome for res in results_summary.values() for outcome in res['outcomes']]
         global_min_score = min(all_outcomes) if all_outcomes else None
         global_max_score = max(all_outcomes) if all_outcomes else None
 
-        # Display the simulation results for each option using the calculated global score range
-        for title, choice in choices.items():
-            user_input_title = options[title]
-            outcomes = choice.monte_carlo_simulation(num_simulations)
-            display_simulation_results(
-                outcomes, title, user_input_title, global_min_score, global_max_score
-            )
+        # Display the box and whisker plot
+        display_box_and_whisker_plot(results_summary, global_min_score, global_max_score)
 
     if results_summary:
         st.sidebar.header("Ranking Summary")
+        # Update the ranking display logic
         mean_ranking = sorted(results_summary, key=lambda x: results_summary[x]["mean"], reverse=True)
         st.sidebar.subheader("Rank by Mean")
         for user_input_title in mean_ranking:
@@ -243,7 +256,8 @@ def show_app():
         )
         st.sidebar.subheader("Rank by Spread")
         for user_input_title in spread_ranking:
-            spread = results_summary[user_input_title]["75th_percentile"] - results_summary[user_input_title]["25th_percentile"]
+            spread = results_summary[user_input_title]["75th_percentile"] - results_summary[user_input_title][
+                "25th_percentile"]
             st.sidebar.write(f"{user_input_title}: {spread:.2f}")
 
 # Ensure that the CareerChoice class and other functions are defined above this point
